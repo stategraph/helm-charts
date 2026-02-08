@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "stategraph.fullname" . }}
+  labels:
+    {{- include "stategraph.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.stategraph.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "stategraph.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "stategraph.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: stategraph
+          image: "{{ .Values.stategraph.image.repository }}:{{ .Values.stategraph.image.tag }}"
+          imagePullPolicy: {{ .Values.stategraph.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "stategraph.fullname" . }}
+          env:
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stategraph.secretName" . }}
+                  key: {{ include "stategraph.secretKey" . | quote }}
+            {{- if .Values.stategraph.oauth.enabled }}
+            - name: STATEGRAPH_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stategraph.fullname" . }}
+                  key: oauth-client-id
+            - name: STATEGRAPH_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stategraph.fullname" . }}
+                  key: oauth-client-secret
+            {{- if and (eq .Values.stategraph.oauth.type "google") .Values.stategraph.oauth.google.serviceAccountJson }}
+            - name: STATEGRAPH_OAUTH_GOOGLE_SERVICE_ACCOUNT_JSON
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stategraph.fullname" . }}
+                  key: oauth-service-account-json
+            {{- end }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.stategraph.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

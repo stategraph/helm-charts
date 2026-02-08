@@ -1,0 +1,17 @@
+apiVersion: v2
+name: stategraph
+description: A Helm chart for Stategraph - Terraform/OpenTofu state management
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - terraform
+  - opentofu
+  - state
+  - infrastructure
+home: https://stategraph.com
+sources:
+  - https://github.com/stategraph/stategraph
+maintainers:
+  - name: Stategraph Team
+    url: https://github.com/stategraph

@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "stategraph.fullname" . }}
+  labels:
+    {{- include "stategraph.labels" . | nindent 4 }}
+data:
+  STATEGRAPH_UI_BASE: {{ .Values.stategraph.ui.base | quote }}
+  STATEGRAPH_OAUTH_REDIRECT_BASE: {{ .Values.stategraph.ui.oauthRedirectBase | quote }}
+  PORT: {{ .Values.stategraph.port | quote }}
+  {{- if .Values.postgresql.enabled }}
+  DB_HOST: {{ include "stategraph.fullname" . }}-postgres
+  {{- else }}
+  DB_HOST: {{ .Values.postgresql.host | quote }}
+  {{- end }}
+  DB_PORT: {{ .Values.postgresql.port | quote }}
+  DB_USER: {{ .Values.postgresql.auth.username | quote }}
+  DB_NAME: {{ .Values.postgresql.auth.database | quote }}
+  {{- if .Values.stategraph.oauth.enabled }}
+  STATEGRAPH_OAUTH_ENABLED: "true"
+  STATEGRAPH_OAUTH_TYPE: {{ .Values.stategraph.oauth.type | quote }}
+  STATEGRAPH_OAUTH_DISPLAY_NAME: {{ .Values.stategraph.oauth.displayName | quote }}
+  STATEGRAPH_OAUTH_EMAIL_DOMAIN: {{ .Values.stategraph.oauth.emailDomain | quote }}
+  {{- if eq .Values.stategraph.oauth.type "google" }}
+  {{- if .Values.stategraph.oauth.google.group }}
+  STATEGRAPH_OAUTH_GOOGLE_GROUP: {{ .Values.stategraph.oauth.google.group | quote }}
+  {{- end }}
+  {{- if .Values.stategraph.oauth.google.adminEmail }}
+  STATEGRAPH_OAUTH_GOOGLE_ADMIN_EMAIL: {{ .Values.stategraph.oauth.google.adminEmail | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if eq .Values.stategraph.oauth.type "oidc" }}
+  STATEGRAPH_OAUTH_OIDC_ISSUER_URL: {{ .Values.stategraph.oauth.oidc.issuerUrl | quote }}
+  {{- end }}
+  {{- end }}

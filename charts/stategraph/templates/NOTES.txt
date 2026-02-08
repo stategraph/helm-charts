@@ -1,0 +1,62 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+  $ helm get all {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+{{- if .Values.postgresql.enabled }}
+{{- if not .Values.postgresql.auth.existingSecret }}
+
+Database Password:
+{{- if .Values.postgresql.auth.password }}
+  The database password was set from values.yaml
+{{- else }}
+  An auto-generated password was created. To retrieve it:
+
+  export DB_PASSWORD=$(kubectl get secret {{ include "stategraph.fullname" . }} -n {{ .Release.Namespace }} -o jsonpath="{.data.db-password}" | base64 -d)
+  echo "Database Password: $DB_PASSWORD"
+{{- end }}
+{{- end }}
+{{- end }}
+
+Accessing Stategraph:
+
+{{- if .Values.ingress.enabled }}
+  Stategraph should be available at:
+{{- range .Values.ingress.hosts }}
+  - http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "stategraph.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo "Stategraph URL: http://$NODE_IP:$NODE_PORT"
+
+{{- else if contains "LoadBalancer" .Values.service.type }}
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+  Watch the status with: kubectl get svc --namespace {{ .Release.Namespace }} -w {{ include "stategraph.fullname" . }}
+
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "stategraph.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo "Stategraph URL: http://$SERVICE_IP:{{ .Values.service.port }}"
+
+{{- else if contains "ClusterIP" .Values.service.type }}
+  For local development, use port-forwarding:
+
+  kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "stategraph.fullname" . }} 8080:{{ .Values.service.port }}
+
+  Then access Stategraph at: http://localhost:8080
+
+  IMPORTANT: Make sure your STATEGRAPH_UI_BASE matches how you access the application:
+  - For port-forward: http://localhost:8080
+  - For production: https://your-domain.com (with Ingress + TLS)
+{{- end }}
+
+⚠️  SECURITY NOTE:
+  Stategraph uses secure cookies which only work over:
+  - HTTPS (recommended for production)
+  - localhost over HTTP (development only)
+
+  DO NOT use custom hostnames over HTTP - authentication will fail!

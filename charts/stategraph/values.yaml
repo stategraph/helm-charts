@@ -1,0 +1,128 @@
+# Default values for stategraph Helm chart
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Stategraph application configuration
+stategraph:
+  # Application image configuration
+  image:
+    repository: ghcr.io/stategraph/stategraph-server
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # Number of application replicas
+  replicaCount: 1
+
+  # Resource limits and requests
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+  # UI Base URL - CRITICAL: Must match how users access Stategraph
+  # For local development: http://localhost:8080
+  # For production: https://your-domain.com
+  # DO NOT use custom hostnames over HTTP (secure cookies will fail)
+  ui:
+    base: "http://localhost:8080"
+    oauthRedirectBase: "http://localhost:8080"
+
+  # Internal application server port (nginx proxies to this)
+  port: "8180"
+
+  # OAuth configuration (optional)
+  oauth:
+    enabled: false
+    type: ""  # "google" or "oidc"
+    clientId: ""
+    clientSecret: ""
+    displayName: "OAuth Login"
+    emailDomain: "*"
+    # Google-specific settings
+    google:
+      group: ""
+      adminEmail: ""
+      serviceAccountJson: ""
+    # OIDC-specific settings
+    oidc:
+      issuerUrl: ""
+
+# PostgreSQL database configuration
+postgresql:
+  # Enable bundled PostgreSQL (disable to use external database)
+  enabled: true
+
+  # PostgreSQL image
+  image:
+    repository: postgres
+    tag: 17-alpine
+    pullPolicy: IfNotPresent
+
+  # Database credentials
+  auth:
+    username: stategraph
+    password: ""  # Leave empty to auto-generate. For production, use existingSecret instead!
+    database: stategraph
+    # Use existing secret for password (recommended for production)
+    existingSecret: ""  # Name of existing secret containing 'db-password' key
+    existingSecretKey: "db-password"  # Key in the secret containing the password
+
+  # PostgreSQL connection details (used when postgresql.enabled=false)
+  host: postgres
+  port: 5432
+
+  # Resource limits and requests
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+  # Persistence configuration
+  persistence:
+    enabled: true
+    size: 10Gi
+    # storageClass: ""  # Uncomment and set for production
+
+# Kubernetes service configuration
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: stategraph.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+    # - secretName: stategraph-tls
+    #   hosts:
+    #     - stategraph.example.com
+
+# Security context
+securityContext: {}
+  # runAsNonRoot: true
+  # runAsUser: 1000
+  # fsGroup: 1000
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
