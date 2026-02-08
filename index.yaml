@@ -1,0 +1,25 @@
+apiVersion: v1
+entries:
+  stategraph:
+  - apiVersion: v2
+    appVersion: latest
+    created: "2026-02-08T22:03:15.835318771Z"
+    description: A Helm chart for Stategraph - Terraform/OpenTofu state management
+    digest: 9b25c809d9a73645a9231e7d0e4121bc188a1f29e1090e9893253231777d8d35
+    home: https://stategraph.com
+    keywords:
+    - terraform
+    - opentofu
+    - state
+    - infrastructure
+    maintainers:
+    - name: Stategraph Team
+      url: https://github.com/stategraph
+    name: stategraph
+    sources:
+    - https://github.com/stategraph/stategraph
+    type: application
+    urls:
+    - https://github.com/stategraph/helm-charts/releases/download/stategraph-0.1.2/stategraph-0.1.2.tgz
+    version: 0.1.2
+generated: "2026-02-08T22:03:15.835330132Z"
