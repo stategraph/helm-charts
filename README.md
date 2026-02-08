@@ -63,7 +63,7 @@ The GitHub Action will automatically create a release and update the Helm reposi
 ## Support
 
 - Documentation: https://stategraph.com/docs
-- Issues: https://github.com/stategraph/stategraph/issues
+- Issues: https://github.com/stategraph/releases/issues
 - Chart Issues: https://github.com/stategraph/helm-charts/issues
 
 ## License

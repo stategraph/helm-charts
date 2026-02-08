@@ -189,5 +189,5 @@ kubectl delete namespace stategraph
 ## Support
 
 - Documentation: https://stategraph.com/docs
-- Issues: https://github.com/stategraph/stategraph/issues
+- Issues: https://github.com/stategraph/releases/issues
 - Chart Issues: https://github.com/stategraph/helm-charts/issues
