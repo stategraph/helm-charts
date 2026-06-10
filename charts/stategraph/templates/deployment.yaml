@@ -13,6 +13,7 @@ spec:
     metadata:
       labels:
         {{- include "stategraph.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: server
     spec:
       {{- with .Values.securityContext }}
       securityContext:
