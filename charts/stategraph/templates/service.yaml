@@ -17,3 +17,4 @@ spec:
       name: http
   selector:
     {{- include "stategraph.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: server
