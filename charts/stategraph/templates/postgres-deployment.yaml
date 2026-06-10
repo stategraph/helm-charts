@@ -32,6 +32,10 @@ spec:
                 secretKeyRef:
                   name: {{ include "stategraph.secretName" . }}
                   key: {{ include "stategraph.secretKey" . | quote }}
+            # Point PGDATA at a subdirectory of the mount so initdb does not
+            # trip over the lost+found directory present on PV mount points.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           ports:
             - name: postgres
               containerPort: 5432
@@ -39,6 +43,10 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+              # subPath mounts only the pgdata subdirectory of the volume, so the
+              # lost+found at the volume root is never visible to the container.
+              # Paired with the PGDATA env var above as defense-in-depth.
+              subPath: pgdata
           resources:
             {{- toYaml .Values.postgresql.resources | nindent 12 }}
           readinessProbe:
