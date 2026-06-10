@@ -54,6 +54,17 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+          # On a fresh database the app runs all schema migrations before the
+          # HTTP server starts listening, which can take a while. The startup
+          # probe gives that one-time work room to finish (up to
+          # failureThreshold * periodSeconds) before liveness/readiness begin,
+          # so a slow first boot isn't mistaken for a crash and killed.
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
           livenessProbe:
             httpGet:
               path: /api/v1/health
