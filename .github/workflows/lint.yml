@@ -1,0 +1,61 @@
+name: Lint Charts
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'charts/**'
+
+jobs:
+  version-bump:
+    name: Require chart version bump
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check Chart.yaml version was bumped
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+
+          fail=0
+          for chart_dir in charts/*/; do
+            chart="${chart_dir%/}"
+            name="$(basename "$chart")"
+
+            # Did anything under this chart change in the PR?
+            if git diff --quiet "$BASE_SHA" -- "$chart"; then
+              continue
+            fi
+
+            new_version="$(git show "HEAD:$chart/Chart.yaml" 2>/dev/null \
+              | grep -E '^version:' | head -1 | awk '{print $2}')"
+            old_version="$(git show "$BASE_SHA:$chart/Chart.yaml" 2>/dev/null \
+              | grep -E '^version:' | head -1 | awk '{print $2}')"
+
+            if [ -z "$new_version" ]; then
+              echo "::error file=$chart/Chart.yaml::Chart '$name' changed but has no 'version:' in Chart.yaml"
+              fail=1
+              continue
+            fi
+
+            # New chart (no Chart.yaml on base) — nothing to compare against.
+            if [ -z "$old_version" ]; then
+              echo "New chart '$name' at version $new_version — OK"
+              continue
+            fi
+
+            if [ "$new_version" = "$old_version" ]; then
+              echo "::error file=$chart/Chart.yaml::Chart '$name' changed but version is still $new_version. Bump 'version:' in $chart/Chart.yaml so chart-releaser can publish a new release."
+              fail=1
+            else
+              echo "Chart '$name' version bumped: $old_version -> $new_version"
+            fi
+          done
+
+          exit $fail
