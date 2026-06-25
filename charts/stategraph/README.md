@@ -215,3 +215,5 @@ kubectl delete namespace stategraph
 - Documentation: https://stategraph.com/docs
 - Issues: https://github.com/stategraph/releases/issues
 - Chart Issues: https://github.com/stategraph/helm-charts/issues
+
+<!-- ci lint negative test: intentional chart change with no version bump -->
