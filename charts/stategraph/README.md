@@ -132,9 +132,20 @@ helm install stategraph stategraph/stategraph \
   --set postgresql.auth.existingSecret="stategraph-db"
 ```
 
-### External PostgreSQL Database
+### External PostgreSQL Database (Containers Only)
+
+Set `postgresql.enabled=false` to deploy only the Stategraph application
+containers and connect to a database you manage yourself. This skips the
+bundled PostgreSQL Deployment, Service, and PersistentVolumeClaim, and points
+the app at the host given by `postgresql.host`.
 
 ```bash
+# Store the database password in a Secret first
+kubectl create secret generic stategraph-db \
+  --namespace stategraph \
+  --from-literal=db-password='your-secure-password'
+
+# Install, referencing that Secret
 helm install stategraph stategraph/stategraph \
   --namespace stategraph \
   --create-namespace \
@@ -142,8 +153,21 @@ helm install stategraph stategraph/stategraph \
   --set postgresql.host="postgres.external.com" \
   --set postgresql.port=5432 \
   --set postgresql.auth.username="stategraph" \
-  --set postgresql.auth.existingSecret="external-db-secret"
+  --set postgresql.auth.database="stategraph" \
+  --set postgresql.auth.existingSecret="stategraph-db" \
+  --set postgresql.auth.existingSecretKey="db-password"
 ```
+
+Notes:
+
+- The external database, user, and database name must already exist and be
+  reachable from the cluster at `host:port`.
+- The app runs its own schema migrations on first boot, so the database user
+  needs schema/DDL privileges.
+- You can pass the password inline with
+  `--set postgresql.auth.password="your-secure-password"` instead of using a
+  Secret. Do not leave it empty when `postgresql.enabled=false` — the chart
+  would auto-generate a random password that won't match your external database.
 
 ## Accessing Stategraph
 
