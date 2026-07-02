@@ -8,6 +8,7 @@ data:
   STATEGRAPH_UI_BASE: {{ .Values.stategraph.ui.base | quote }}
   STATEGRAPH_OAUTH_REDIRECT_BASE: {{ .Values.stategraph.ui.oauthRedirectBase | quote }}
   STATEGRAPH_PORT: {{ .Values.stategraph.port | quote }}
+  STATEGRAPH_DB_STATEMENT_TIMEOUT: {{ .Values.stategraph.db.statementTimeout | quote }}
   {{- if .Values.postgresql.enabled }}
   DB_HOST: {{ include "stategraph.fullname" . }}-postgres
   {{- else }}

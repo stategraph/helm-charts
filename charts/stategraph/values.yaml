@@ -33,12 +33,22 @@ stategraph:
   # Internal application server port (nginx proxies to this)
   port: "8180"
 
+  # Database tuning
+  db:
+    # Postgres statement_timeout for application queries (Postgres interval syntax)
+    statementTimeout: "60s"
+
   # OAuth configuration (optional)
   oauth:
     enabled: false
     type: ""  # "google" or "oidc"
     clientId: ""
     clientSecret: ""
+    # oauth2-proxy cookie-signing secret. Must be 16, 24, or 32 characters.
+    # Leave blank to auto-generate a stable value on first install (preserved
+    # across `helm upgrade`). Set explicitly only if you need to share the same
+    # secret across clusters. Required for correct login when replicaCount > 1.
+    cookieSecret: ""
     displayName: "OAuth Login"
     emailDomain: "*"
     # Google-specific settings

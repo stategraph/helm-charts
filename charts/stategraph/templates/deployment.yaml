@@ -43,6 +43,11 @@ spec:
                 secretKeyRef:
                   name: {{ include "stategraph.fullname" . }}
                   key: oauth-client-secret
+            - name: STATEGRAPH_OAUTH_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stategraph.fullname" . }}
+                  key: oauth-cookie-secret
             {{- if and (eq .Values.stategraph.oauth.type "google") .Values.stategraph.oauth.google.serviceAccountJson }}
             - name: STATEGRAPH_OAUTH_GOOGLE_SERVICE_ACCOUNT_JSON
               valueFrom:
