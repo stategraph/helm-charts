@@ -20,7 +20,7 @@ stategraph:
       memory: 256Mi
     limits:
       cpu: "2"
-      memory: 2Gi
+      memory: 4Gi
 
   # UI Base URL - CRITICAL: Must match how users access Stategraph
   # For local development: http://localhost:8080
@@ -90,8 +90,8 @@ postgresql:
       cpu: 100m
       memory: 256Mi
     limits:
-      cpu: "1"
-      memory: 1Gi
+      cpu: "8"
+      memory: 8Gi
 
   # Persistence configuration
   persistence:
