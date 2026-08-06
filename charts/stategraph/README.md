@@ -41,6 +41,8 @@ The following table lists the configurable parameters of the Stategraph chart an
 | `stategraph.ui.base` | Public base URL for the UI | `http://localhost:8080` |
 | `stategraph.ui.oauthRedirectBase` | OAuth redirect base URL | `http://localhost:8080` |
 | `stategraph.port` | Internal application port | `8180` |
+| `stategraph.cost.enabled` | Enable the cost intelligence service | `false` |
+| `stategraph.extraEnv` | Extra environment variables (map of name to value); overrides chart-managed settings | `{}` |
 | `stategraph.resources.requests.cpu` | CPU request | `100m` |
 | `stategraph.resources.requests.memory` | Memory request | `256Mi` |
 | `stategraph.resources.limits.cpu` | CPU limit | `2` |
@@ -98,6 +100,34 @@ Retrieve the auto-generated password:
 
 ```bash
 kubectl get secret stategraph -n stategraph -o jsonpath="{.data.db-password}" | base64 -d
+```
+
+### Enabling the Cost Service
+
+```bash
+helm upgrade stategraph stategraph/stategraph \
+  --namespace stategraph \
+  --set stategraph.cost.enabled=true
+```
+
+### Setting Arbitrary Environment Variables
+
+Anything the chart does not expose as a named value can be passed through
+`stategraph.extraEnv`. These are rendered into the server container's `env`,
+so they take precedence over the chart's own settings.
+
+```bash
+helm upgrade stategraph stategraph/stategraph \
+  --namespace stategraph \
+  --set stategraph.extraEnv.STATEGRAPH_LOG_LEVEL=debug
+```
+
+Or in a values file:
+
+```yaml
+stategraph:
+  extraEnv:
+    STATEGRAPH_LOG_LEVEL: "debug"
 ```
 
 ### Production Installation with Ingress and TLS

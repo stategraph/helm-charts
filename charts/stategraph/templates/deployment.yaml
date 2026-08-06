@@ -56,6 +56,13 @@ spec:
                   key: oauth-service-account-json
             {{- end }}
             {{- end }}
+            # Listed after the ConfigMap-backed envFrom on purpose: entries in
+            # `env` take precedence over `envFrom`, so extraEnv can override any
+            # chart-managed setting.
+            {{- range $name, $value := .Values.stategraph.extraEnv }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 8080

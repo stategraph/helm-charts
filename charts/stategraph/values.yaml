@@ -33,6 +33,16 @@ stategraph:
   # Internal application server port (nginx proxies to this)
   port: "8180"
 
+  # Cost intelligence service. Enables cost calculation and the cost APIs.
+  cost:
+    enabled: false
+
+  # Extra environment variables for the Stategraph server, as a map of
+  # name -> value. Escape hatch for settings the chart does not expose
+  # first-class. Values set here win over the chart's own settings.
+  extraEnv: {}
+    # STATEGRAPH_LOG_LEVEL: "debug"
+
   # Database tuning
   db:
     # Postgres statement_timeout for application queries (Postgres interval syntax)
