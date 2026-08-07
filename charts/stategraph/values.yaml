@@ -43,6 +43,23 @@ stategraph:
   extraEnv: {}
     # STATEGRAPH_LOG_LEVEL: "debug"
 
+  # Extra volumes and mounts for the Stategraph server, in plain Kubernetes
+  # syntax. Escape hatch for anything that has to reach the container as a FILE
+  # rather than an env var -- a CA bundle, a TLS keypair, a credentials file:
+  #
+  #   extraVolumes:
+  #     - name: google-sa
+  #       secret:
+  #         secretName: my-google-sa
+  #   extraVolumeMounts:
+  #     - name: google-sa
+  #       mountPath: /var/secrets/google
+  #       readOnly: true
+  #
+  # Then point the consuming setting at the mounted path via extraEnv.
+  extraVolumes: []
+  extraVolumeMounts: []
+
   # Database tuning
   db:
     # Postgres statement_timeout for application queries (Postgres interval syntax)
