@@ -92,6 +92,14 @@ spec:
             periodSeconds: 5
           resources:
             {{- toYaml .Values.stategraph.resources | nindent 12 }}
+          {{- with .Values.stategraph.extraVolumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.stategraph.extraVolumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
