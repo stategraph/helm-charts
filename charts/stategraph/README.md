@@ -42,7 +42,12 @@ The following table lists the configurable parameters of the Stategraph chart an
 | `stategraph.ui.oauthRedirectBase` | OAuth redirect base URL | `http://localhost:8080` |
 | `stategraph.port` | Internal application port | `8180` |
 | `stategraph.cost.enabled` | Enable the cost intelligence service | `false` |
-| `stategraph.extraEnv` | Extra environment variables (map of name to value); overrides chart-managed settings | `{}` |
+| `stategraph.extraEnv` | Extra environment variables, as a list of Kubernetes `EnvVar` objects; overrides chart-managed settings | `[]` |
+| `stategraph.oauth.existingSecret` | Read OAuth credentials from a Secret you manage yourself | `""` |
+| `stategraph.oauth.existingSecretKeys.clientId` | Client ID key in that Secret | `oauth-client-id` |
+| `stategraph.oauth.existingSecretKeys.clientSecret` | Client secret key in that Secret | `oauth-client-secret` |
+| `stategraph.oauth.existingSecretKeys.cookieSecret` | Cookie-secret key in that Secret; unset means the env var is not wired up | `""` |
+| `stategraph.oauth.existingSecretKeys.googleServiceAccountJson` | Google service-account JSON key in that Secret; unset means the env var is not wired up | `""` |
 | `stategraph.resources.requests.cpu` | CPU request | `100m` |
 | `stategraph.resources.requests.memory` | Memory request | `256Mi` |
 | `stategraph.resources.limits.cpu` | CPU limit | `2` |
@@ -113,22 +118,34 @@ helm upgrade stategraph stategraph/stategraph \
 ### Setting Arbitrary Environment Variables
 
 Anything the chart does not expose as a named value can be passed through
-`stategraph.extraEnv`. These are rendered into the server container's `env`,
-so they take precedence over the chart's own settings.
-
-```bash
-helm upgrade stategraph stategraph/stategraph \
-  --namespace stategraph \
-  --set stategraph.extraEnv.STATEGRAPH_LOG_LEVEL=debug
-```
-
-Or in a values file:
+`stategraph.extraEnv`. It is a list of Kubernetes `EnvVar` objects, copied into
+the server container's `env` verbatim, so entries take precedence over the
+chart's own settings and a value can come from a Secret or ConfigMap the chart
+knows nothing about:
 
 ```yaml
 stategraph:
   extraEnv:
-    STATEGRAPH_LOG_LEVEL: "debug"
+    - name: STATEGRAPH_LOG_LEVEL
+      value: "debug"
+    - name: STATEGRAPH_SOME_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: stategraph-external
+          key: some-token
 ```
+
+Literal values also work from the command line:
+
+```bash
+helm upgrade stategraph stategraph/stategraph \
+  --namespace stategraph \
+  --set stategraph.extraEnv[0].name=STATEGRAPH_LOG_LEVEL \
+  --set stategraph.extraEnv[0].value=debug
+```
+
+The older map form (`STATEGRAPH_LOG_LEVEL: "debug"`) is still accepted, so
+values files written for chart versions before 0.1.11 keep working.
 
 ### Production Installation with Ingress and TLS
 
@@ -161,6 +178,76 @@ helm install stategraph stategraph/stategraph \
   --create-namespace \
   --set postgresql.auth.existingSecret="stategraph-db"
 ```
+
+### Using an Existing Secret for the OAuth Credentials
+
+Setting `stategraph.oauth.clientSecret` in a values file means committing a
+secret to git. To avoid that, put the credentials in a Secret you manage
+yourself — typically one produced by the External Secrets Operator,
+sealed-secrets, or `kubectl create secret` — and point the chart at it with
+`stategraph.oauth.existingSecret`. The chart then creates no OAuth Secret of its
+own and reads every OAuth credential from yours.
+
+```yaml
+stategraph:
+  oauth:
+    enabled: true
+    type: oidc
+    existingSecret: stategraph-oauth
+    oidc:
+      issuerUrl: https://issuer.example.com
+```
+
+An `ExternalSecret` that satisfies the default key names:
+
+```yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: stategraph-oauth
+  namespace: stategraph
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: my-store
+    kind: SecretStore
+  target:
+    name: stategraph-oauth
+  data:
+    - secretKey: oauth-client-id
+      remoteRef: {key: stategraph/oauth, property: client_id}
+    - secretKey: oauth-client-secret
+      remoteRef: {key: stategraph/oauth, property: client_secret}
+    - secretKey: oauth-cookie-secret
+      remoteRef: {key: stategraph/oauth, property: cookie_secret}
+```
+
+If your Secret uses different key names, map them with
+`stategraph.oauth.existingSecretKeys`:
+
+```yaml
+stategraph:
+  oauth:
+    existingSecret: stategraph-oauth
+    existingSecretKeys:
+      clientId: client_id
+      clientSecret: client_secret
+      cookieSecret: cookie_secret
+```
+
+Notes:
+
+- `cookieSecret` and `googleServiceAccountJson` default to empty, and an empty
+  key means the chart does not wire that environment variable up at all —
+  naming a key your Secret does not carry would leave the pod in
+  `CreateContainerConfigError`.
+- The chart cannot generate the cookie secret for you here. Provide one (16, 24,
+  or 32 bytes) and name its key whenever `stategraph.replicaCount > 1`;
+  otherwise the app picks a random value per process and a login whose callback
+  lands on another pod fails with `invalid CSRF token`.
+- The database password is separate — see
+  `postgresql.auth.existingSecret` above. Setting one has no effect on the
+  other, so a deployment that keeps everything out of git sets both.
 
 ### External PostgreSQL Database (Containers Only)
 

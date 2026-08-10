@@ -69,3 +69,63 @@ Get the secret key for database password
 db-password
 {{- end -}}
 {{- end -}}
+
+{{/*
+Name of the Secret holding the OAuth credentials. Either one managed outside the
+chart -- created by the External Secrets Operator, sealed-secrets, or by hand --
+or the chart's own Secret when oauth.existingSecret is unset.
+*/}}
+{{- define "stategraph.oauth.secretName" -}}
+{{- if .Values.stategraph.oauth.existingSecret -}}
+{{- .Values.stategraph.oauth.existingSecret -}}
+{{- else -}}
+{{- include "stategraph.fullname" . -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Keys within the OAuth Secret. The key names are only configurable for an
+external Secret; the chart's own Secret always writes the canonical names, so
+overriding them there could only produce a dangling reference.
+*/}}
+{{- define "stategraph.oauth.clientIdKey" -}}
+{{- if .Values.stategraph.oauth.existingSecret -}}
+{{- default "oauth-client-id" .Values.stategraph.oauth.existingSecretKeys.clientId -}}
+{{- else -}}
+oauth-client-id
+{{- end -}}
+{{- end -}}
+
+{{- define "stategraph.oauth.clientSecretKey" -}}
+{{- if .Values.stategraph.oauth.existingSecret -}}
+{{- default "oauth-client-secret" .Values.stategraph.oauth.existingSecretKeys.clientSecret -}}
+{{- else -}}
+oauth-client-secret
+{{- end -}}
+{{- end -}}
+
+{{/*
+Cookie-secret key. Empty means "do not wire the env var at all": with an
+external Secret the chart cannot generate this value, and referencing a key the
+Secret does not carry would leave the pod in CreateContainerConfigError. The
+app falls back to a per-process random value, which is only safe at
+replicaCount 1.
+*/}}
+{{- define "stategraph.oauth.cookieSecretKey" -}}
+{{- if .Values.stategraph.oauth.existingSecret -}}
+{{- .Values.stategraph.oauth.existingSecretKeys.cookieSecret -}}
+{{- else -}}
+oauth-cookie-secret
+{{- end -}}
+{{- end -}}
+
+{{/*
+Google service-account JSON key, or empty when it should not be wired up.
+*/}}
+{{- define "stategraph.oauth.googleServiceAccountJsonKey" -}}
+{{- if .Values.stategraph.oauth.existingSecret -}}
+{{- .Values.stategraph.oauth.existingSecretKeys.googleServiceAccountJson -}}
+{{- else if .Values.stategraph.oauth.google.serviceAccountJson -}}
+oauth-service-account-json
+{{- end -}}
+{{- end -}}

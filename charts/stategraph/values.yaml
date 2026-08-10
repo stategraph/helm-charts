@@ -37,11 +37,24 @@ stategraph:
   cost:
     enabled: false
 
-  # Extra environment variables for the Stategraph server, as a map of
-  # name -> value. Escape hatch for settings the chart does not expose
-  # first-class. Values set here win over the chart's own settings.
-  extraEnv: {}
-    # STATEGRAPH_LOG_LEVEL: "debug"
+  # Extra environment variables for the Stategraph server, as a list of
+  # Kubernetes EnvVar objects passed through verbatim. Escape hatch for settings
+  # the chart does not expose first-class. Entries set here win over the chart's
+  # own settings. Because these are real EnvVar objects, a value can come from a
+  # Secret you manage yourself (External Secrets Operator, sealed-secrets, ...)
+  # instead of being written into this file:
+  #
+  #   extraEnv:
+  #     - name: STATEGRAPH_LOG_LEVEL
+  #       value: "debug"
+  #     - name: STATEGRAPH_SOME_TOKEN
+  #       valueFrom:
+  #         secretKeyRef:
+  #           name: stategraph-external
+  #           key: some-token
+  #
+  # The older map form (STATEGRAPH_LOG_LEVEL: "debug") is still accepted.
+  extraEnv: []
 
   # Extra volumes and mounts for the Stategraph server, in plain Kubernetes
   # syntax. Escape hatch for anything that has to reach the container as a FILE
@@ -71,6 +84,25 @@ stategraph:
     type: ""  # "google" or "oidc"
     clientId: ""
     clientSecret: ""
+    # Read the OAuth credentials from a Secret you manage yourself, instead of
+    # having the chart create one from the values below. Set this and leave
+    # clientId/clientSecret/cookieSecret/google.serviceAccountJson empty when
+    # the Secret is produced by the External Secrets Operator, sealed-secrets,
+    # or anything else that keeps the plaintext out of your values file.
+    existingSecret: ""
+    # Key names inside that Secret. Only consulted when existingSecret is set.
+    # clientId/clientSecret fall back to the names below when left empty;
+    # cookieSecret and googleServiceAccountJson are only wired up when named,
+    # since referencing a key the Secret does not carry leaves the pod in
+    # CreateContainerConfigError.
+    existingSecretKeys:
+      clientId: "oauth-client-id"
+      clientSecret: "oauth-client-secret"
+      # Required for correct login when replicaCount > 1 -- see cookieSecret
+      # below. Must be 16, 24, or 32 bytes.
+      cookieSecret: ""
+      # Only for oauth.type=google with Google group membership checks.
+      googleServiceAccountJson: ""
     # oauth2-proxy cookie-signing secret. Must be 16, 24, or 32 characters.
     # Leave blank to auto-generate a stable value on first install (preserved
     # across `helm upgrade`). Set explicitly only if you need to share the same

@@ -33,35 +33,51 @@ spec:
                   name: {{ include "stategraph.secretName" . }}
                   key: {{ include "stategraph.secretKey" . | quote }}
             {{- if .Values.stategraph.oauth.enabled }}
+            {{- $oauthSecret := include "stategraph.oauth.secretName" . }}
             - name: STATEGRAPH_OAUTH_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "stategraph.fullname" . }}
-                  key: oauth-client-id
+                  name: {{ $oauthSecret }}
+                  key: {{ include "stategraph.oauth.clientIdKey" . | quote }}
             - name: STATEGRAPH_OAUTH_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "stategraph.fullname" . }}
-                  key: oauth-client-secret
+                  name: {{ $oauthSecret }}
+                  key: {{ include "stategraph.oauth.clientSecretKey" . | quote }}
+            {{- with include "stategraph.oauth.cookieSecretKey" . }}
             - name: STATEGRAPH_OAUTH_COOKIE_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "stategraph.fullname" . }}
-                  key: oauth-cookie-secret
-            {{- if and (eq .Values.stategraph.oauth.type "google") .Values.stategraph.oauth.google.serviceAccountJson }}
+                  name: {{ $oauthSecret }}
+                  key: {{ . | quote }}
+            {{- end }}
+            {{- if eq .Values.stategraph.oauth.type "google" }}
+            {{- with include "stategraph.oauth.googleServiceAccountJsonKey" . }}
             - name: STATEGRAPH_OAUTH_GOOGLE_SERVICE_ACCOUNT_JSON
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "stategraph.fullname" . }}
-                  key: oauth-service-account-json
+                  name: {{ $oauthSecret }}
+                  key: {{ . | quote }}
+            {{- end }}
             {{- end }}
             {{- end }}
             # Listed after the ConfigMap-backed envFrom on purpose: entries in
             # `env` take precedence over `envFrom`, so extraEnv can override any
             # chart-managed setting.
-            {{- range $name, $value := .Values.stategraph.extraEnv }}
+            #
+            # extraEnv is a list of Kubernetes EnvVar objects, passed through
+            # verbatim so a `valueFrom` can reference a Secret or ConfigMap the
+            # chart knows nothing about. The map form (name: value) is still
+            # accepted for charts installed before 0.1.11.
+            {{- with .Values.stategraph.extraEnv }}
+            {{- if kindIs "slice" . }}
+            {{- toYaml . | nindent 12 }}
+            {{- else }}
+            {{- range $name, $value := . }}
             - name: {{ $name }}
               value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
             {{- end }}
           ports:
             - name: http
