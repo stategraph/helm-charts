@@ -12,8 +12,11 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "stategraph.selectorLabels" . | nindent 8 }}
+        {{- include "stategraph.labels" . | nindent 8 }}
         app.kubernetes.io/component: server
+        {{- with .Values.stategraph.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.securityContext }}
       securityContext:

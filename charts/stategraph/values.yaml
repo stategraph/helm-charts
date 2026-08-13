@@ -73,6 +73,16 @@ stategraph:
   extraVolumes: []
   extraVolumeMounts: []
 
+  # Additional labels for the Stategraph server pods, merged into
+  # spec.template.metadata.labels on the Deployment. Use this when a policy
+  # check requires specific labels on pods. Additive only -- the Deployment's
+  # selector is not affected.
+  #
+  #   podLabels:
+  #     team: platform
+  #     cost-center: "1234"
+  podLabels: {}
+
   # Database tuning
   db:
     # Postgres statement_timeout for application queries (Postgres interval syntax)
