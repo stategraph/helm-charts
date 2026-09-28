@@ -49,6 +49,24 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Server image reference. An empty tag means the chart's appVersion.
+*/}}
+{{- define "stategraph.image" -}}
+{{- printf "%s:%s" .Values.stategraph.image.repository (default .Chart.AppVersion .Values.stategraph.image.tag) -}}
+{{- end -}}
+
+{{/*
+Host of the stategraph database: the bundled Service or the external host.
+*/}}
+{{- define "stategraph.dbHost" -}}
+{{- if .Values.postgresql.enabled -}}
+{{- include "stategraph.fullname" . }}-postgres
+{{- else -}}
+{{- .Values.postgresql.host -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Get the secret name for database password
 */}}
 {{- define "stategraph.secretName" -}}
@@ -68,6 +86,13 @@ Get the secret key for database password
 {{- else -}}
 db-password
 {{- end -}}
+{{- end -}}
+
+{{/*
+Base of the OAuth callback URLs. Empty means the UI base.
+*/}}
+{{- define "stategraph.oauthRedirectBase" -}}
+{{- default .Values.stategraph.ui.base .Values.stategraph.ui.oauthRedirectBase -}}
 {{- end -}}
 
 {{/*
@@ -127,5 +152,127 @@ Google service-account JSON key, or empty when it should not be wired up.
 {{- .Values.stategraph.oauth.existingSecretKeys.googleServiceAccountJson -}}
 {{- else if .Values.stategraph.oauth.google.serviceAccountJson -}}
 oauth-service-account-json
+{{- end -}}
+{{- end -}}
+
+{{/*
+License key: "true" when a key is supplied inline or through an external Secret.
+*/}}
+{{- define "stategraph.license.enabled" -}}
+{{- if or .Values.stategraph.license.key .Values.stategraph.license.existingSecret -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{- define "stategraph.license.secretName" -}}
+{{- if .Values.stategraph.license.existingSecret -}}
+{{- .Values.stategraph.license.existingSecret -}}
+{{- else -}}
+{{- include "stategraph.fullname" . -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "stategraph.license.secretKey" -}}
+{{- if .Values.stategraph.license.existingSecret -}}
+{{- default "license-key" .Values.stategraph.license.existingSecretKey -}}
+{{- else -}}
+license-key
+{{- end -}}
+{{- end -}}
+
+{{/*
+Orchestration public URLs. Empty values derive from the UI base.
+*/}}
+{{- define "stategraph.orchestration.apiBase" -}}
+{{- default (printf "%s/api" .Values.stategraph.ui.base) .Values.stategraph.orchestration.apiBase -}}
+{{- end -}}
+
+{{- define "stategraph.orchestration.uiBase" -}}
+{{- default .Values.stategraph.ui.base .Values.stategraph.orchestration.uiBase -}}
+{{- end -}}
+
+{{- define "stategraph.orchestration.webBaseUrl" -}}
+{{- default .Values.stategraph.ui.base .Values.stategraph.orchestration.webBaseUrl -}}
+{{- end -}}
+
+{{/*
+The Secret holding the two FDW role passwords, and its keys. With an external
+Secret an empty provisioner key means that env var is not wired up.
+*/}}
+{{- define "stategraph.fdw.secretName" -}}
+{{- if .Values.stategraph.orchestration.fdw.existingSecret -}}
+{{- .Values.stategraph.orchestration.fdw.existingSecret -}}
+{{- else -}}
+{{- include "stategraph.fullname" . -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "stategraph.fdw.passwordKey" -}}
+{{- if .Values.stategraph.orchestration.fdw.existingSecret -}}
+{{- default "fdw-password" .Values.stategraph.orchestration.fdw.existingSecretKeys.password -}}
+{{- else -}}
+fdw-password
+{{- end -}}
+{{- end -}}
+
+{{- define "stategraph.fdw.provisionerPasswordKey" -}}
+{{- if .Values.stategraph.orchestration.fdw.existingSecret -}}
+{{- .Values.stategraph.orchestration.fdw.existingSecretKeys.provisionerPassword -}}
+{{- else -}}
+fdw-provisioner-password
+{{- end -}}
+{{- end -}}
+
+{{/*
+GitHub App: "true" when credentials are supplied inline or through an external Secret.
+*/}}
+{{- define "stategraph.github.enabled" -}}
+{{- if or .Values.stategraph.orchestration.github.appId .Values.stategraph.orchestration.github.existingSecret -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{- define "stategraph.github.secretName" -}}
+{{- if .Values.stategraph.orchestration.github.existingSecret -}}
+{{- .Values.stategraph.orchestration.github.existingSecret -}}
+{{- else -}}
+{{- include "stategraph.fullname" . -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Key of one GitHub credential in that Secret. Takes a dict with "ctx" (the root
+context), "name" (the existingSecretKeys field) and "default" (the canonical key).
+*/}}
+{{- define "stategraph.github.key" -}}
+{{- if .ctx.Values.stategraph.orchestration.github.existingSecret -}}
+{{- default .default (index .ctx.Values.stategraph.orchestration.github.existingSecretKeys .name) -}}
+{{- else -}}
+{{- .default -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+GitLab: "true" when credentials are supplied inline or through an external Secret.
+*/}}
+{{- define "stategraph.gitlab.enabled" -}}
+{{- if or .Values.stategraph.orchestration.gitlab.appId .Values.stategraph.orchestration.gitlab.existingSecret -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{- define "stategraph.gitlab.secretName" -}}
+{{- if .Values.stategraph.orchestration.gitlab.existingSecret -}}
+{{- .Values.stategraph.orchestration.gitlab.existingSecret -}}
+{{- else -}}
+{{- include "stategraph.fullname" . -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "stategraph.gitlab.key" -}}
+{{- if .ctx.Values.stategraph.orchestration.gitlab.existingSecret -}}
+{{- default .default (index .ctx.Values.stategraph.orchestration.gitlab.existingSecretKeys .name) -}}
+{{- else -}}
+{{- .default -}}
 {{- end -}}
 {{- end -}}

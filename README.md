@@ -1,6 +1,6 @@
 # Stategraph Helm Charts
 
-Official Helm charts for [Stategraph](https://stategraph.com) - a modern Terraform/OpenTofu state management solution.
+Official Helm charts for [Stategraph](https://stategraph.com) - Terraform/OpenTofu state management and orchestration.
 
 ## Usage
 
@@ -15,7 +15,7 @@ helm repo update
 
 ### [Stategraph](./charts/stategraph)
 
-Deploy Stategraph with bundled PostgreSQL database.
+Deploy the Stategraph Enterprise server with a bundled PostgreSQL database. Each chart version pins a server version; optional cost estimation, security scanning, and Orchestration are one value each.
 
 ```bash
 helm install my-stategraph stategraph/stategraph \
@@ -103,7 +103,7 @@ The GitHub Action will automatically create a release and update the Helm reposi
 
 ## Support
 
-- Documentation: https://stategraph.com/docs
+- Documentation: https://stategraph.com/docs/admin/self-hosting/kubernetes
 - Issues: https://github.com/stategraph/releases/issues
 - Chart Issues: https://github.com/stategraph/helm-charts/issues
 
