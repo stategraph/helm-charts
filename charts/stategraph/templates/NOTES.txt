@@ -1,4 +1,4 @@
-Thank you for installing {{ .Chart.Name }}!
+Thank you for installing {{ .Chart.Name }} {{ .Chart.Version }} (Stategraph {{ default .Chart.AppVersion .Values.stategraph.image.tag }}).
 
 Your release is named {{ .Release.Name }}.
 
@@ -54,9 +54,26 @@ Accessing Stategraph:
   - For production: https://your-domain.com (with Ingress + TLS)
 {{- end }}
 
-⚠️  SECURITY NOTE:
-  Stategraph uses secure cookies which only work over:
-  - HTTPS (recommended for production)
-  - localhost over HTTP (development only)
+First-time setup:
+  The first visit shows the setup screen. It asks for the Enterprise license
+  key{{ if include "stategraph.license.enabled" . }} (already supplied through stategraph.license){{ end }}, then creates the first admin account and signs you in.
 
-  DO NOT use custom hostnames over HTTP - authentication will fail!
+Cookies:
+  An https:// STATEGRAPH_UI_BASE sets the Secure flag on cookies; an http:// one
+  does not, so sign-in over plain HTTP works for a port-forward or an internal
+  network. Use HTTPS for anything reachable from outside.
+{{- if .Values.stategraph.orchestration.enabled }}
+
+Orchestration:
+  Webhook URLs (set them on your GitHub App or GitLab project):
+  - GitHub: {{ include "stategraph.orchestration.apiBase" . }}/github/v1/events
+  - GitLab: {{ include "stategraph.orchestration.apiBase" . }}/v1/gitlab/events
+{{- if not .Values.stategraph.orchestration.provisionDatabase }}
+
+  provisionDatabase is off, so create the database and roles by hand before
+  the server can start:
+    CREATE DATABASE "{{ .Values.stategraph.orchestration.databaseName }}" OWNER "{{ .Values.postgresql.auth.username }}";
+    CREATE ROLE {{ .Values.stategraph.orchestration.fdw.user }} LOGIN PASSWORD '<fdw-password>';
+    CREATE ROLE {{ .Values.stategraph.orchestration.fdw.provisionerUser }} LOGIN PASSWORD '<provisioner-password>';
+{{- end }}
+{{- end }}

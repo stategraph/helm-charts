@@ -11,6 +11,12 @@ spec:
       {{- include "stategraph.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      # The server reads its settings from the ConfigMap and Secret through
+      # envFrom and env, which Kubernetes does not watch, so a change to either
+      # rolls the pods through these annotations.
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
       labels:
         {{- include "stategraph.labels" . | nindent 8 }}
         app.kubernetes.io/component: server
@@ -18,13 +24,112 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      terminationGracePeriodSeconds: {{ .Values.stategraph.terminationGracePeriodSeconds }}
       {{- with .Values.securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if and .Values.stategraph.orchestration.enabled .Values.stategraph.orchestration.provisionDatabase }}
+      # Creates the Orchestration database and gives the two FDW roles LOGIN
+      # and their passwords before the server starts, with the stategraph
+      # database credentials. Orchestration creates the database and the roles
+      # NOLOGIN itself when they are missing, but never touches LOGIN or
+      # passwords, and the stategraph migration cannot build the FDW bridge
+      # until the read role can log in. Every statement is idempotent, so the
+      # replicas of a rollout converge on the same result.
+      initContainers:
+        - name: provision-orchestration-db
+          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+          {{- with .Values.stategraph.orchestration.provisionDatabaseResources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: PGHOST
+              value: {{ include "stategraph.dbHost" . | quote }}
+            - name: PGPORT
+              value: {{ .Values.postgresql.port | quote }}
+            - name: PGUSER
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stategraph.secretName" . }}
+                  key: {{ include "stategraph.secretKey" . | quote }}
+            - name: PGDATABASE
+              value: {{ .Values.postgresql.auth.database | quote }}
+            - name: PGCONNECT_TIMEOUT
+              value: "5"
+            - name: TERRAT_DB_NAME
+              value: {{ .Values.stategraph.orchestration.databaseName | quote }}
+            - name: FDW_USER
+              value: {{ .Values.stategraph.orchestration.fdw.user | quote }}
+            - name: FDW_PROVISIONER_USER
+              value: {{ .Values.stategraph.orchestration.fdw.provisionerUser | quote }}
+            {{- $fdwSecret := include "stategraph.fdw.secretName" . }}
+            - name: FDW_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fdwSecret }}
+                  key: {{ include "stategraph.fdw.passwordKey" . | quote }}
+            {{- with include "stategraph.fdw.provisionerPasswordKey" . }}
+            - name: FDW_PROVISIONER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fdwSecret }}
+                  key: {{ . | quote }}
+            {{- end }}
+          command:
+            - sh
+            - -eu
+            - -c
+            - |
+              until pg_isready -q; do
+                echo "waiting for PostgreSQL at $PGHOST:$PGPORT"
+                sleep 2
+              done
+
+              # SQL goes in on stdin: psql interpolates :'var' and :"var" there,
+              # which keeps names and passwords out of shell quoting.
+              q() { psql -At -v ON_ERROR_STOP=1 "$@"; }
+              db_exists() {
+                [ "$(printf '%s\n' "select 1 from pg_database where datname = :'db'" | q -v db="$TERRAT_DB_NAME")" = 1 ]
+              }
+              role_exists() {
+                [ "$(printf '%s\n' "select 1 from pg_roles where rolname = :'role'" | q -v role="$1")" = 1 ]
+              }
+
+              # Orchestration or another replica may create the database or a
+              # role at the same moment, so a failed CREATE is re-checked
+              # before it counts.
+              if db_exists; then
+                echo "database $TERRAT_DB_NAME exists"
+              else
+                printf '%s\n' 'create database :"db" owner :"owner"' \
+                  | q -v db="$TERRAT_DB_NAME" -v owner="$PGUSER" || db_exists
+                echo "database $TERRAT_DB_NAME created"
+              fi
+
+              set_role() {
+                if role_exists "$1"; then
+                  echo "role $1 exists"
+                else
+                  printf '%s\n' 'create role :"role"' | q -v role="$1" || role_exists "$1"
+                  echo "role $1 created"
+                fi
+                printf '%s\n' "alter role :\"role\" login password :'pw'" | q -v role="$1" -v pw="$2"
+                echo "role $1 login and password set"
+              }
+
+              set_role "$FDW_USER" "$FDW_PASSWORD"
+              if [ -n "${FDW_PROVISIONER_PASSWORD:-}" ]; then
+                set_role "$FDW_PROVISIONER_USER" "$FDW_PROVISIONER_PASSWORD"
+              fi
+      {{- end }}
       containers:
         - name: stategraph
-          image: "{{ .Values.stategraph.image.repository }}:{{ .Values.stategraph.image.tag }}"
+          image: {{ include "stategraph.image" . | quote }}
           imagePullPolicy: {{ .Values.stategraph.image.pullPolicy }}
           envFrom:
             - configMapRef:
@@ -35,6 +140,20 @@ spec:
                 secretKeyRef:
                   name: {{ include "stategraph.secretName" . }}
                   key: {{ include "stategraph.secretKey" . | quote }}
+            {{- if .Values.stategraph.cost.enabled }}
+            - name: PRICING_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stategraph.secretName" . }}
+                  key: {{ include "stategraph.secretKey" . | quote }}
+            {{- end }}
+            {{- if include "stategraph.license.enabled" . }}
+            - name: STATEGRAPH_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stategraph.license.secretName" . }}
+                  key: {{ include "stategraph.license.secretKey" . | quote }}
+            {{- end }}
             {{- if .Values.stategraph.oauth.enabled }}
             {{- $oauthSecret := include "stategraph.oauth.secretName" . }}
             - name: STATEGRAPH_OAUTH_CLIENT_ID
@@ -64,6 +183,67 @@ spec:
             {{- end }}
             {{- end }}
             {{- end }}
+            {{- if .Values.stategraph.orchestration.enabled }}
+            {{- $fdwSecret := include "stategraph.fdw.secretName" . }}
+            - name: STATEGRAPH_FDW_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fdwSecret }}
+                  key: {{ include "stategraph.fdw.passwordKey" . | quote }}
+            {{- with include "stategraph.fdw.provisionerPasswordKey" . }}
+            - name: STATEGRAPH_FDW_PROVISIONER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fdwSecret }}
+                  key: {{ . | quote }}
+            {{- end }}
+            {{- if include "stategraph.github.enabled" . }}
+            {{- $githubSecret := include "stategraph.github.secretName" . }}
+            - name: GITHUB_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $githubSecret }}
+                  key: {{ include "stategraph.github.key" (dict "ctx" . "name" "appId" "default" "github-app-id") | quote }}
+            - name: GITHUB_APP_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $githubSecret }}
+                  key: {{ include "stategraph.github.key" (dict "ctx" . "name" "clientId" "default" "github-app-client-id") | quote }}
+            - name: GITHUB_APP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $githubSecret }}
+                  key: {{ include "stategraph.github.key" (dict "ctx" . "name" "clientSecret" "default" "github-app-client-secret") | quote }}
+            - name: GITHUB_APP_PEM
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $githubSecret }}
+                  key: {{ include "stategraph.github.key" (dict "ctx" . "name" "pem" "default" "github-app-pem") | quote }}
+            - name: GITHUB_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $githubSecret }}
+                  key: {{ include "stategraph.github.key" (dict "ctx" . "name" "webhookSecret" "default" "github-webhook-secret") | quote }}
+            {{- end }}
+            {{- if include "stategraph.gitlab.enabled" . }}
+            {{- $gitlabSecret := include "stategraph.gitlab.secretName" . }}
+            - name: GITLAB_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $gitlabSecret }}
+                  key: {{ include "stategraph.gitlab.key" (dict "ctx" . "name" "appId" "default" "gitlab-app-id") | quote }}
+            - name: GITLAB_APP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $gitlabSecret }}
+                  key: {{ include "stategraph.gitlab.key" (dict "ctx" . "name" "appSecret" "default" "gitlab-app-secret") | quote }}
+            - name: GITLAB_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $gitlabSecret }}
+                  key: {{ include "stategraph.gitlab.key" (dict "ctx" . "name" "accessToken" "default" "gitlab-access-token") | quote }}
+            {{- end }}
+            {{- end }}
             # Listed after the ConfigMap-backed envFrom on purpose: entries in
             # `env` take precedence over `envFrom`, so extraEnv can override any
             # chart-managed setting.
@@ -86,29 +266,18 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
-          # On a fresh database the app runs all schema migrations before the
-          # HTTP server starts listening, which can take a while. The startup
-          # probe gives that one-time work room to finish (up to
-          # failureThreshold * periodSeconds) before liveness/readiness begin,
-          # so a slow first boot isn't mistaken for a crash and killed.
+          {{- with .Values.stategraph.startupProbe }}
           startupProbe:
-            httpGet:
-              path: /api/v1/health
-              port: http
-            periodSeconds: 5
-            failureThreshold: 60
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.stategraph.livenessProbe }}
           livenessProbe:
-            httpGet:
-              path: /api/v1/health
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.stategraph.readinessProbe }}
           readinessProbe:
-            httpGet:
-              path: /api/v1/health
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.stategraph.resources | nindent 12 }}
           {{- with .Values.stategraph.extraVolumeMounts }}

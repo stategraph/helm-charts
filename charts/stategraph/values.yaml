@@ -1,19 +1,15 @@
-# Default values for stategraph Helm chart
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+# Default values for the stategraph Helm chart.
 
-# Stategraph application configuration
 stategraph:
-  # Application image configuration
   image:
     repository: ghcr.io/stategraph/stategraph-server
-    tag: latest
+    # Empty means the chart's appVersion. Pin a version from
+    # https://github.com/stategraph/releases/releases for production.
+    tag: ""
     pullPolicy: IfNotPresent
 
-  # Number of application replicas
   replicaCount: 1
 
-  # Resource limits and requests
   resources:
     requests:
       cpu: 100m
@@ -22,20 +18,126 @@ stategraph:
       cpu: "2"
       memory: 4Gi
 
-  # UI Base URL - CRITICAL: Must match how users access Stategraph
-  # For local development: http://localhost:8080
-  # For production: https://your-domain.com
-  # DO NOT use custom hostnames over HTTP (secure cookies will fail)
+  # Public URL that users open (STATEGRAPH_UI_BASE). An https:// URL sets the
+  # Secure flag on cookies; an http:// URL does not, so a plain-HTTP host
+  # name works for a port-forward or an internal network.
   ui:
     base: "http://localhost:8080"
-    oauthRedirectBase: "http://localhost:8080"
+    # Base of the /oauth2/{provider}/callback URLs. Empty means ui.base.
+    oauthRedirectBase: ""
 
-  # Internal application server port (nginx proxies to this)
+  # Internal application server port. nginx inside the image proxies to it.
   port: "8180"
 
-  # Cost intelligence service. Enables cost calculation and the cost APIs.
+  # Enterprise license key (STATEGRAPH_LICENSE_KEY). The key completes the
+  # first-time setup; without it the setup screen asks for one.
+  license:
+    key: ""
+    # Read the key from a Secret you manage yourself instead.
+    existingSecret: ""
+    existingSecretKey: "license-key"
+
+  # Cost estimation. The in-image pricing service loads the price book into
+  # the cloud_pricing database on first start and refreshes it weekly. The
+  # pricing database is on the same PostgreSQL server, with the same user and
+  # password, as the stategraph database; the loader creates it, so the user
+  # needs CREATEDB, or the database must exist.
   cost:
     enabled: false
+    databaseName: cloud_pricing
+    # libpq sslmode for the pricing database connection.
+    sslMode: disable
+    # Price-book refresh interval in hours. Empty means the image default
+    # (168). 0 turns the refresh off.
+    refreshHours: ""
+
+  # Security scanning of states with checkov (STATEGRAPH_SECURITY).
+  security:
+    enabled: false
+
+  # Stategraph Orchestration: plans and applies from pull requests. Needs the
+  # terrateam database and the two FDW roles on the PostgreSQL server; see
+  # provisionDatabase below.
+  orchestration:
+    enabled: false
+    # Public URLs. Empty means derived from ui.base: apiBase is ui.base plus
+    # /api, uiBase and webBaseUrl are ui.base.
+    apiBase: ""
+    uiBase: ""
+    webBaseUrl: ""
+    # TERRAT_TELEMETRY_LEVEL: anonymous or disabled. Empty means the image
+    # default (anonymous).
+    telemetryLevel: ""
+    # Name of the Orchestration database.
+    databaseName: terrateam
+    # Create the Orchestration database and the two FDW roles on the
+    # PostgreSQL server from an init container on the server pod, with the
+    # stategraph database credentials and psql from postgresql.image. The
+    # connecting role needs CREATEDB and CREATEROLE (the bundled PostgreSQL
+    # user has both). Set to false on a managed server where you create them
+    # by hand.
+    provisionDatabase: true
+    provisionDatabaseResources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
+    # The two roles through which the stategraph database reads the
+    # Orchestration database over postgres_fdw.
+    fdw:
+      user: stategraph_mql
+      provisionerUser: stategraph_provisioner
+      # Passwords. Leave blank to generate stable values on first install
+      # (preserved across helm upgrade). With provisionDatabase false, set
+      # them to the passwords you gave the roles.
+      password: ""
+      provisionerPassword: ""
+      # Read both passwords from a Secret you manage yourself instead.
+      existingSecret: ""
+      existingSecretKeys:
+        password: "fdw-password"
+        # Empty means the provisioner password is not wired up, and
+        # connecting a GitLab group from the console is off.
+        provisionerPassword: "fdw-provisioner-password"
+    # GitHub App. Orchestration runs as this App. Set appId (and the other
+    # inline values) or existingSecret to turn GitHub on.
+    github:
+      appId: ""
+      clientId: ""
+      clientSecret: ""
+      pem: ""
+      webhookSecret: ""
+      # Install URL of the App, linked from the console. Leave empty rather
+      # than setting an empty string in extraEnv.
+      appUrl: ""
+      # GitHub Enterprise Server.
+      apiBaseUrl: ""
+      webBaseUrl: ""
+      # Read the five credentials from a Secret you manage yourself instead
+      # of the inline values above.
+      existingSecret: ""
+      existingSecretKeys:
+        appId: "github-app-id"
+        clientId: "github-app-client-id"
+        clientSecret: "github-app-client-secret"
+        pem: "github-app-pem"
+        webhookSecret: "github-webhook-secret"
+    # GitLab. Set appId (and the other inline values) or existingSecret to
+    # turn GitLab on.
+    gitlab:
+      appId: ""
+      appSecret: ""
+      accessToken: ""
+      # Self-managed GitLab: root URL of the instance, without /api/v4.
+      apiBaseUrl: ""
+      webBaseUrl: ""
+      existingSecret: ""
+      existingSecretKeys:
+        appId: "gitlab-app-id"
+        appSecret: "gitlab-app-secret"
+        accessToken: "gitlab-access-token"
 
   # Extra environment variables for the Stategraph server, as a list of
   # Kubernetes EnvVar objects passed through verbatim. Escape hatch for settings
@@ -45,15 +147,15 @@ stategraph:
   # instead of being written into this file:
   #
   #   extraEnv:
-  #     - name: STATEGRAPH_LOG_LEVEL
-  #       value: "debug"
+  #     - name: STATEGRAPH_ACCESS_LOG
+  #       value: "/dev/stdout"
   #     - name: STATEGRAPH_SOME_TOKEN
   #       valueFrom:
   #         secretKeyRef:
   #           name: stategraph-external
   #           key: some-token
   #
-  # The older map form (STATEGRAPH_LOG_LEVEL: "debug") is still accepted.
+  # The older map form (STATEGRAPH_ACCESS_LOG: "/dev/stdout") is still accepted.
   extraEnv: []
 
   # Extra volumes and mounts for the Stategraph server, in plain Kubernetes
@@ -83,12 +185,40 @@ stategraph:
   #     cost-center: "1234"
   podLabels: {}
 
+  # At stop the server refuses new requests, finishes those in progress, then
+  # exits, within 55 seconds. A shorter grace period cuts requests short.
+  terminationGracePeriodSeconds: 60
+
+  # /health/live answers as soon as nginx is up. /health/ready answers 200 only
+  # after the database migrations ran and the server serves requests. On a
+  # fresh or large database the migrations can take minutes; the startup probe
+  # allows failureThreshold * periodSeconds for them before liveness begins.
+  startupProbe:
+    httpGet:
+      path: /health/ready
+      port: http
+    periodSeconds: 5
+    failureThreshold: 60
+  livenessProbe:
+    httpGet:
+      path: /health/live
+      port: http
+    periodSeconds: 10
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /health/ready
+      port: http
+    periodSeconds: 5
+    failureThreshold: 3
+
   # Database tuning
   db:
     # Postgres statement_timeout for application queries (Postgres interval syntax)
     statementTimeout: "60s"
 
-  # OAuth configuration (optional)
+  # OAuth configuration (optional). Local email and password sign-in is on
+  # when this is off.
   oauth:
     enabled: false
     type: ""  # "google" or "oidc"
@@ -134,7 +264,7 @@ postgresql:
   # Enable bundled PostgreSQL (disable to use external database)
   enabled: true
 
-  # PostgreSQL image
+  # PostgreSQL image. Also provides psql for the Orchestration init container.
   image:
     repository: postgres
     tag: 17-alpine
