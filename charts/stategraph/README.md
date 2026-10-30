@@ -20,6 +20,13 @@ helm repo update
 helm install my-stategraph stategraph/stategraph --namespace stategraph --create-namespace
 ```
 
+Without `--version`, Helm installs the newest chart. Pin the chart version to get the same server version on every install:
+
+```bash
+helm search repo stategraph/stategraph --versions
+helm install my-stategraph stategraph/stategraph --version <chart-version> --namespace stategraph --create-namespace
+```
+
 ### From Source
 
 ```bash
@@ -474,10 +481,21 @@ An `https://` URL in `stategraph.ui.base` sets the `Secure` flag on cookies, and
 
 ```bash
 helm repo update
-helm upgrade stategraph stategraph/stategraph -n stategraph
+helm upgrade stategraph stategraph/stategraph -n stategraph --version <chart-version>
 ```
 
 Each chart version pins a server version. The server migrates its databases at start; `/health/ready` keeps traffic off a pod until that is done, and replicas that start together migrate safely. At stop the server drains requests in progress within the 60 second `terminationGracePeriodSeconds` the chart sets.
+
+### Server version
+
+A new chart version follows each server release, with the server version in `appVersion`; `helm search repo stategraph/stategraph --versions` lists both. To run another server version with the same chart, set `stategraph.image.tag` to a version from the [releases page](https://github.com/stategraph/releases/releases):
+
+```bash
+helm upgrade stategraph stategraph/stategraph -n stategraph --version <chart-version> \
+  --set stategraph.image.tag=<server-version>
+```
+
+Don't use `latest`. Each node pulls `latest` once and keeps that image, so pods on different nodes can run different server versions. After a newer pod migrates the database, an older pod exits at start, because the database holds migrations it does not know.
 
 ### From 0.1.x
 
