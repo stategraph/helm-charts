@@ -241,17 +241,21 @@ stategraph:
       # Required for correct login when replicaCount > 1 -- see cookieSecret
       # below. Must be 16, 24, or 32 bytes.
       cookieSecret: ""
-      # Only for oauth.type=google with Google group membership checks.
+      # Only for oauth.type=google, to read the users' Google Groups.
       googleServiceAccountJson: ""
-    # oauth2-proxy cookie-signing secret. Must be 16, 24, or 32 characters.
+    # Sign-in cookie-signing secret. Must be 16, 24, or 32 characters.
     # Leave blank to auto-generate a stable value on first install (preserved
     # across `helm upgrade`). Set explicitly only if you need to share the same
     # secret across clusters. Required for correct login when replicaCount > 1.
     cookieSecret: ""
     displayName: "OAuth Login"
+    # Comma-separated email domains that can sign in, or "*" for any.
     emailDomain: "*"
     # Google-specific settings
     google:
+      # Comma-separated Google Groups whose members can sign in. Needs adminEmail
+      # and serviceAccountJson. With those two and no group, everyone signs in and
+      # group rules get all of the user's groups.
       group: ""
       adminEmail: ""
       serviceAccountJson: ""
