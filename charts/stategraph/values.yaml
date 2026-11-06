@@ -210,7 +210,8 @@ stategraph:
       path: /health/ready
       port: http
     periodSeconds: 5
-    failureThreshold: 3
+    timeoutSeconds: 5
+    failureThreshold: 12
 
   # Database tuning
   db:
