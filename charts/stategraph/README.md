@@ -457,7 +457,7 @@ Notes:
 
 ## Health checks
 
-The image answers two endpoints on port 8080. `/health/live` answers `200` as soon as the web server is up, and `/health/ready` answers `200` only after the database migrations ran and the server serves requests; during migrations it answers `502`. The chart's startup probe polls `/health/ready` and allows five minutes by default before the liveness probe on `/health/live` begins. For a large database, raise `stategraph.startupProbe.failureThreshold`.
+The image answers two endpoints on port 8080. `/health/live` answers `200` as soon as the web server is up, and `/health/ready` answers `200` only after the database migrations ran and the server serves requests; during migrations it answers `502`. The chart's startup probe polls `/health/ready` and allows five minutes by default before the liveness probe on `/health/live` begins. For a large database, raise `stategraph.startupProbe.failureThreshold`. A large plan can keep the server from answering for tens of seconds, so the readiness probe takes a pod out of service only after about a minute without an answer.
 
 ## Accessing Stategraph
 
