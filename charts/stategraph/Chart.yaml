@@ -2,8 +2,8 @@ apiVersion: v2
 name: stategraph
 description: A Helm chart for Stategraph - Terraform/OpenTofu state management and orchestration
 type: application
-version: 0.2.8
-appVersion: "3.2.27"
+version: 0.2.9
+appVersion: "3.2.28"
 keywords:
   - terraform
   - opentofu
