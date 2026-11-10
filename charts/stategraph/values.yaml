@@ -1,8 +1,14 @@
 # Default values for the stategraph Helm chart.
 
 stategraph:
+  # oss or enterprise: the server image the chart deploys. Enterprise also
+  # needs a license key, below or entered on the setup screen.
+  edition: oss
+
   image:
-    repository: ghcr.io/stategraph/stategraph-server
+    # Empty means the image of the edition: ghcr.io/stategraph/stategraph-server-oss
+    # or ghcr.io/stategraph/stategraph-server.
+    repository: ""
     # Empty means the chart's appVersion. Pin a version from
     # https://github.com/stategraph/releases/releases for production.
     tag: ""
