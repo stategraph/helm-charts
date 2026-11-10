@@ -49,10 +49,24 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Server image reference. An empty tag means the chart's appVersion.
+Edition of the server: oss or enterprise.
+*/}}
+{{- define "stategraph.edition" -}}
+{{- $edition := .Values.stategraph.edition -}}
+{{- if not (has $edition (list "oss" "enterprise")) -}}
+{{- fail (printf "stategraph.edition must be oss or enterprise, not %q" $edition) -}}
+{{- end -}}
+{{- $edition -}}
+{{- end -}}
+
+{{/*
+Server image reference. An empty repository means the image of the edition, and
+an empty tag the chart's appVersion.
 */}}
 {{- define "stategraph.image" -}}
-{{- printf "%s:%s" .Values.stategraph.image.repository (default .Chart.AppVersion .Values.stategraph.image.tag) -}}
+{{- $editionImage := ternary "ghcr.io/stategraph/stategraph-server" "ghcr.io/stategraph/stategraph-server-oss" (eq (include "stategraph.edition" .) "enterprise") -}}
+{{- $repository := default $editionImage .Values.stategraph.image.repository -}}
+{{- printf "%s:%s" $repository (default .Chart.AppVersion .Values.stategraph.image.tag) -}}
 {{- end -}}
 
 {{/*

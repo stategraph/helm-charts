@@ -2,7 +2,7 @@
 
 A Helm chart for deploying [Stategraph](https://stategraph.com): Terraform/OpenTofu state management (Infrastructure as a Database) and Orchestration (plans and applies from pull requests).
 
-The chart deploys the Enterprise server image, `ghcr.io/stategraph/stategraph-server`, with a bundled or external PostgreSQL. Each chart version pins a server version through `appVersion`; `stategraph.image.tag` overrides it.
+The chart deploys the Open Source server image, `ghcr.io/stategraph/stategraph-server-oss`, or the Enterprise image, `ghcr.io/stategraph/stategraph-server`, with a bundled or external PostgreSQL. See [Edition](#edition). Each chart version pins a server version through `appVersion`; `stategraph.image.tag` overrides it.
 
 ## Prerequisites
 
@@ -37,14 +37,26 @@ helm install my-stategraph ./charts/stategraph --namespace stategraph --create-n
 
 ## First-time setup
 
-Open Stategraph after the install. The first visit shows the setup screen: it asks for the Enterprise license key, then creates the first admin account and signs you in. Local email and password sign-in is the default; see [Authentication](#authentication) for Google or OIDC.
+Open Stategraph after the install. The first visit shows the setup screen: it creates the first admin account and signs you in. On Enterprise, it asks for the license key first. Local email and password sign-in is the default; see [Authentication](#authentication) for Google or OIDC.
 
-To supply the license key up front, so the setup screen skips that step:
+## Edition
+
+`stategraph.edition` selects the server image:
+
+| `stategraph.edition` | Image |
+|----------------------|-------|
+| `oss` (default) | `ghcr.io/stategraph/stategraph-server-oss` |
+| `enterprise` | `ghcr.io/stategraph/stategraph-server` |
+
+A `stategraph.image.repository` that you set wins over the edition. Both images use the same versions and the same database.
+
+Enterprise needs a license key. To deploy it with the key up front, so the setup screen skips that step:
 
 ```bash
 helm install stategraph stategraph/stategraph \
   --namespace stategraph \
   --create-namespace \
+  --set stategraph.edition=enterprise \
   --set stategraph.license.key="<license-key>"
 ```
 
@@ -57,6 +69,7 @@ kubectl create secret generic stategraph-license -n stategraph \
 helm install stategraph stategraph/stategraph \
   --namespace stategraph \
   --create-namespace \
+  --set stategraph.edition=enterprise \
   --set stategraph.license.existingSecret=stategraph-license
 ```
 
@@ -68,14 +81,15 @@ The following table lists the configurable parameters of the Stategraph chart an
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `stategraph.image.repository` | Stategraph image repository | `ghcr.io/stategraph/stategraph-server` |
+| `stategraph.edition` | `oss` or `enterprise`: the server image | `oss` |
+| `stategraph.image.repository` | Stategraph image repository; empty means the image of the edition | `""` |
 | `stategraph.image.tag` | Stategraph image tag; empty means the chart's `appVersion` | `""` |
 | `stategraph.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `stategraph.replicaCount` | Number of replicas | `1` |
 | `stategraph.ui.base` | Public base URL for the UI (`STATEGRAPH_UI_BASE`) | `http://localhost:8080` |
 | `stategraph.ui.oauthRedirectBase` | OAuth callback base URL; empty means `stategraph.ui.base` | `""` |
 | `stategraph.port` | Internal application port | `8180` |
-| `stategraph.license.key` | Enterprise license key | `""` |
+| `stategraph.license.key` | Enterprise license key, with `stategraph.edition=enterprise` | `""` |
 | `stategraph.license.existingSecret` | Read the license key from a Secret you manage yourself | `""` |
 | `stategraph.license.existingSecretKey` | Key in that Secret | `license-key` |
 | `stategraph.cost.enabled` | Enable cost estimation | `false` |
@@ -496,6 +510,10 @@ helm upgrade stategraph stategraph/stategraph -n stategraph --version <chart-ver
 ```
 
 Don't use `latest`. Each node pulls `latest` once and keeps that image, so pods on different nodes can run different server versions. After a newer pod migrates the database, an older pod exits at start, because the database holds migrations it does not know.
+
+### From 0.2.x
+
+Chart 0.3.0 deploys the Open Source image by default. An Enterprise deployment sets `stategraph.edition=enterprise` in the upgrade. A `stategraph.image.repository` that you set still wins.
 
 ### From 0.1.x
 
