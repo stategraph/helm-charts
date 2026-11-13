@@ -138,8 +138,8 @@ The following table lists the configurable parameters of the Stategraph chart an
 | `stategraph.livenessProbe` | Liveness probe on `/health/live` | see values.yaml |
 | `stategraph.readinessProbe` | Readiness probe on `/health/ready` | see values.yaml |
 | `stategraph.db.statementTimeout` | `STATEGRAPH_DB_STATEMENT_TIMEOUT` | `60s` |
-| `stategraph.oauth.enabled` | Enable Google or OIDC sign-in | `false` |
-| `stategraph.oauth.type` | `google` or `oidc` | `""` |
+| `stategraph.oauth.enabled` | Enable Google, GitHub or OIDC sign-in | `false` |
+| `stategraph.oauth.type` | `google`, `github` or `oidc` | `""` |
 | `stategraph.oauth.clientId` | OAuth client ID | `""` |
 | `stategraph.oauth.clientSecret` | OAuth client secret | `""` |
 | `stategraph.oauth.cookieSecret` | Cookie-signing secret (16, 24, or 32 characters); empty generates a stable value | `""` |
@@ -150,6 +150,9 @@ The following table lists the configurable parameters of the Stategraph chart an
 | `stategraph.oauth.existingSecretKeys.clientSecret` | Client secret key in that Secret | `oauth-client-secret` |
 | `stategraph.oauth.existingSecretKeys.cookieSecret` | Cookie-secret key in that Secret; unset means the env var is not wired up | `""` |
 | `stategraph.oauth.existingSecretKeys.googleServiceAccountJson` | Google service-account JSON key in that Secret; unset means the env var is not wired up | `""` |
+| `stategraph.oauth.github.org` | GitHub organizations whose members can sign in, comma-separated; required with `stategraph.oauth.type=github` | `""` |
+| `stategraph.oauth.github.webBaseUrl` | GitHub Enterprise Server web base for sign-in | `""` |
+| `stategraph.oauth.github.apiBaseUrl` | GitHub Enterprise Server API base for sign-in | `""` |
 | `stategraph.resources.requests.cpu` | CPU request | `100m` |
 | `stategraph.resources.requests.memory` | Memory request | `256Mi` |
 | `stategraph.resources.limits.cpu` | CPU limit | `2` |
@@ -343,7 +346,7 @@ helm install stategraph stategraph/stategraph \
 
 ### Authentication
 
-Local email and password sign-in is on when `stategraph.oauth.enabled` is off. For Google or OIDC:
+Local email and password sign-in is on when `stategraph.oauth.enabled` is off. For Google, GitHub or OIDC:
 
 ```bash
 helm install stategraph stategraph/stategraph \
@@ -357,7 +360,9 @@ helm install stategraph stategraph/stategraph \
   --set stategraph.oauth.emailDomain="example.com"
 ```
 
-In your provider, register `https://stategraph.example.com/oauth2/google/callback` or `/oauth2/oidc/callback` as the redirect URI. `stategraph.oauth.emailDomain` defaults to `*`, which lets any identity the provider authenticates sign in, and the first user to sign in while no instance admin exists becomes one; restrict it to your domain on any public deployment.
+In your provider, register `https://stategraph.example.com/oauth2/google/callback`, `/oauth2/github/callback` or `/oauth2/oidc/callback` as the redirect URI. `stategraph.oauth.emailDomain` defaults to `*`, which lets any identity the provider authenticates sign in, and the first user to sign in while no instance admin exists becomes one; restrict it to your domain on any public deployment.
+
+For GitHub, set `stategraph.oauth.type="github"`, the client ID and secret of a GitHub OAuth App, and `stategraph.oauth.github.org` to the organizations whose members can sign in. On GitHub Enterprise Server, also set `stategraph.oauth.github.webBaseUrl` and `apiBaseUrl`. Sign-in and Orchestration use the same GitHub URLs: with the Orchestration GitHub App, `stategraph.orchestration.github.webBaseUrl` and `apiBaseUrl` also apply to sign-in, and when both are set, the install fails unless they are equal.
 
 ### Using an Existing Secret for the OAuth Credentials
 

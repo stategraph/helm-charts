@@ -267,6 +267,29 @@ context), "name" (the existingSecretKeys field) and "default" (the canonical key
 {{- end -}}
 
 {{/*
+One GitHub URL, GITHUB_WEB_BASE_URL or GITHUB_API_BASE_URL: the server reads it
+for GitHub sign-in and for the Orchestration GitHub App. Takes a dict with "ctx"
+(the root context) and "name" ("webBaseUrl" or "apiBaseUrl"). The sign-in value
+counts with oauth.type=github, the Orchestration value with the GitHub App.
+Empty when neither is set. Fails when both are set and differ.
+*/}}
+{{- define "stategraph.github.baseUrl" -}}
+{{- $sg := .ctx.Values.stategraph -}}
+{{- $signIn := "" -}}
+{{- if and $sg.oauth.enabled (eq $sg.oauth.type "github") -}}
+{{- $signIn = index $sg.oauth.github .name | default "" -}}
+{{- end -}}
+{{- $orchestration := "" -}}
+{{- if and $sg.orchestration.enabled (include "stategraph.github.enabled" .ctx) -}}
+{{- $orchestration = index $sg.orchestration.github .name | default "" -}}
+{{- end -}}
+{{- if and $signIn $orchestration (ne $signIn $orchestration) -}}
+{{- fail (printf "stategraph.oauth.github.%s (%q) and stategraph.orchestration.github.%s (%q) must be equal: sign-in and Orchestration use the same GitHub URL" .name $signIn .name $orchestration) -}}
+{{- end -}}
+{{- default $orchestration $signIn -}}
+{{- end -}}
+
+{{/*
 GitLab: "true" when credentials are supplied inline or through an external Secret.
 */}}
 {{- define "stategraph.gitlab.enabled" -}}
