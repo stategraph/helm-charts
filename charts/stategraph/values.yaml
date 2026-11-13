@@ -228,7 +228,7 @@ stategraph:
   # when this is off.
   oauth:
     enabled: false
-    type: ""  # "google" or "oidc"
+    type: ""  # "google", "github" or "oidc"
     clientId: ""
     clientSecret: ""
     # Read the OAuth credentials from a Secret you manage yourself, instead of
@@ -266,6 +266,18 @@ stategraph:
       group: ""
       adminEmail: ""
       serviceAccountJson: ""
+    # GitHub-specific settings
+    github:
+      # Required with type "github": comma-separated GitHub organizations
+      # whose members can sign in.
+      org: ""
+      # GitHub Enterprise Server: the web URL, e.g. https://github.example.com,
+      # and the API URL, e.g. https://github.example.com/api/v3. Empty means
+      # github.com. Sign-in and Orchestration use the same GitHub URLs, so
+      # orchestration.github.webBaseUrl and apiBaseUrl also apply here. When
+      # both are set, they must be equal.
+      webBaseUrl: ""
+      apiBaseUrl: ""
     # OIDC-specific settings
     oidc:
       issuerUrl: ""

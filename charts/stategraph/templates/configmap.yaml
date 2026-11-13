@@ -41,9 +41,18 @@ data:
   STATEGRAPH_OAUTH_GOOGLE_ADMIN_EMAIL: {{ .Values.stategraph.oauth.google.adminEmail | quote }}
   {{- end }}
   {{- end }}
+  {{- if eq .Values.stategraph.oauth.type "github" }}
+  STATEGRAPH_OAUTH_GITHUB_ORG: {{ required "stategraph.oauth.github.org is required with stategraph.oauth.type=github" .Values.stategraph.oauth.github.org | quote }}
+  {{- end }}
   {{- if eq .Values.stategraph.oauth.type "oidc" }}
   STATEGRAPH_OAUTH_OIDC_ISSUER_URL: {{ .Values.stategraph.oauth.oidc.issuerUrl | quote }}
   {{- end }}
+  {{- end }}
+  {{- with include "stategraph.github.baseUrl" (dict "ctx" . "name" "apiBaseUrl") }}
+  GITHUB_API_BASE_URL: {{ . | quote }}
+  {{- end }}
+  {{- with include "stategraph.github.baseUrl" (dict "ctx" . "name" "webBaseUrl") }}
+  GITHUB_WEB_BASE_URL: {{ . | quote }}
   {{- end }}
   {{- if .Values.stategraph.orchestration.enabled }}
   STATEGRAPH_ORCHESTRATION_ENABLED: "true"
@@ -60,12 +69,6 @@ data:
   {{- if include "stategraph.github.enabled" . }}
   {{- with .Values.stategraph.orchestration.github.appUrl }}
   GITHUB_APP_URL: {{ . | quote }}
-  {{- end }}
-  {{- with .Values.stategraph.orchestration.github.apiBaseUrl }}
-  GITHUB_API_BASE_URL: {{ . | quote }}
-  {{- end }}
-  {{- with .Values.stategraph.orchestration.github.webBaseUrl }}
-  GITHUB_WEB_BASE_URL: {{ . | quote }}
   {{- end }}
   {{- end }}
   {{- if include "stategraph.gitlab.enabled" . }}
