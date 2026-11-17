@@ -65,7 +65,7 @@ stategraph:
   # terrateam database and the two FDW roles on the PostgreSQL server; see
   # provisionDatabase below.
   orchestration:
-    enabled: false
+    enabled: true
     # Public URLs. Empty means derived from ui.base: apiBase is ui.base plus
     # /api, uiBase and webBaseUrl are ui.base.
     apiBase: ""

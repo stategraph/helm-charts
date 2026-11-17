@@ -97,7 +97,7 @@ The following table lists the configurable parameters of the Stategraph chart an
 | `stategraph.cost.sslMode` | libpq `sslmode` for the price-book connection | `disable` |
 | `stategraph.cost.refreshHours` | Price-book refresh interval; empty means the image default (168), `0` turns it off | `""` |
 | `stategraph.security.enabled` | Enable security scanning of states with checkov | `false` |
-| `stategraph.orchestration.enabled` | Enable Stategraph Orchestration | `false` |
+| `stategraph.orchestration.enabled` | Stategraph Orchestration | `true` |
 | `stategraph.orchestration.apiBase` | `TERRAT_API_BASE`; empty means `stategraph.ui.base` plus `/api` | `""` |
 | `stategraph.orchestration.uiBase` | `TERRAT_UI_BASE`; empty means `stategraph.ui.base` | `""` |
 | `stategraph.orchestration.webBaseUrl` | `TERRAT_WEB_BASE_URL`; empty means `stategraph.ui.base` | `""` |
@@ -250,17 +250,13 @@ helm upgrade stategraph stategraph/stategraph \
   --set stategraph.security.enabled=true
 ```
 
-### Enabling Orchestration
+### Orchestration
 
-Orchestration turns pull requests into plans and applies through a GitHub App or a GitLab connection. It needs a second logical database, `terrateam`, and two roles, `stategraph_mql` and `stategraph_provisioner`, on the same PostgreSQL server. With `stategraph.orchestration.provisionDatabase` on (the default), an init container on the server pod creates them with the `stategraph` database credentials and sets the role passwords from the chart's Secret, before each server start. That works out of the box with the bundled PostgreSQL. On an external server, the connecting role needs `CREATEDB` and `CREATEROLE`, and on managed PostgreSQL such as Amazon RDS it also needs superuser rights (`rds_superuser`) for the `postgres_fdw` bridge.
+Stategraph Orchestration is on by default. It turns pull requests into plans and applies through a GitHub App or a GitLab connection. Before each server start, an init container on the server pod creates the `terrateam` database and the two roles that Orchestration needs on the same PostgreSQL server, with the `stategraph` database credentials and passwords that the chart generates. That works out of the box with the bundled PostgreSQL. On an external server, see [External PostgreSQL Database](#external-postgresql-database-containers-only).
 
-Create the GitHub App with the setup wizard:
+After the install, open the console as an instance admin, and connect GitHub or GitLab from the **Get Started** page. For GitHub, the console creates the GitHub App and stores it, with no change to the values.
 
-```bash
-docker run --rm -p 3000:3000 ghcr.io/stategraph/orchestration-setup:latest
-```
-
-Put the credentials it prints into a Secret:
+To bring a GitHub App that you manage yourself, put its credentials into a Secret:
 
 ```bash
 kubectl create secret generic stategraph-github -n stategraph \
@@ -271,13 +267,12 @@ kubectl create secret generic stategraph-github -n stategraph \
   --from-literal=github-webhook-secret="$GITHUB_WEBHOOK_SECRET"
 ```
 
-Then turn Orchestration on:
+Then reference it:
 
 ```bash
 helm upgrade stategraph stategraph/stategraph \
   --namespace stategraph \
-  --set stategraph.ui.base="https://stategraph.example.com" \
-  --set stategraph.orchestration.enabled=true \
+  --reuse-values \
   --set stategraph.orchestration.github.existingSecret=stategraph-github \
   --set stategraph.orchestration.github.appUrl="$GITHUB_APP_URL"
 ```
@@ -291,9 +286,9 @@ The inline values (`github.appId`, `github.pem`, `gitlab.appId`, ...) also work 
 Notes:
 
 - The public URLs `TERRAT_API_BASE`, `TERRAT_UI_BASE`, and `TERRAT_WEB_BASE_URL` derive from `stategraph.ui.base`. With the same host as `stategraph.ui.base`, that host serves the Stategraph console only. To serve the Terrateam console as well, give `stategraph.orchestration.uiBase` a host of its own that also routes to this Service.
-- With `provisionDatabase` off, create the database and the roles by hand before the first start with Orchestration on, and set `stategraph.orchestration.fdw.password` and `provisionerPassword` (or `fdw.existingSecret`) to the passwords you gave the roles.
 - Orchestration does not start when a GitHub App is configured without its webhook secret, and only the container log shows that.
 - Telemetry is on by default (`anonymous`). Set `stategraph.orchestration.telemetryLevel=disabled` to turn it off.
+- `stategraph.orchestration.enabled=false` turns Orchestration off.
 
 ### Setting Arbitrary Environment Variables
 
@@ -470,9 +465,15 @@ Notes:
   `--set postgresql.auth.password="your-secure-password"` instead of using a
   Secret. Do not leave it empty when `postgresql.enabled=false` — the chart
   would auto-generate a random password that won't match your external database.
-- With cost estimation or Orchestration on, the same server also holds the
-  `cloud_pricing` and `terrateam` databases; see the sections above for what
-  the user needs to create them.
+- The same server also holds the `terrateam` database of Orchestration, and
+  with cost estimation on, the `cloud_pricing` database. To create the
+  Orchestration database and roles, the user needs `CREATEDB` and
+  `CREATEROLE`. On managed PostgreSQL such as Amazon RDS, it also needs
+  superuser rights (`rds_superuser`). Without them, set
+  `stategraph.orchestration.provisionDatabase=false`, create the database and
+  the roles by hand (the install notes print the statements), and set
+  `stategraph.orchestration.fdw.password` and `provisionerPassword`, or
+  `fdw.existingSecret`, to their passwords.
 
 ## Health checks
 
@@ -515,6 +516,10 @@ helm upgrade stategraph stategraph/stategraph -n stategraph --version <chart-ver
 ```
 
 Don't use `latest`. Each node pulls `latest` once and keeps that image, so pods on different nodes can run different server versions. After a newer pod migrates the database, an older pod exits at start, because the database holds migrations it does not know.
+
+### From 0.3.x
+
+Chart 0.4.0 turns Orchestration on by default. `--reuse-values` keeps the defaults of 0.3.x, so upgrade with `--reset-then-reuse-values` (Helm 3.14 or later), or add `--set stategraph.orchestration.enabled=true`. On an external PostgreSQL whose user cannot create databases and roles, the init container fails and the server pod does not start: see [External PostgreSQL Database](#external-postgresql-database-containers-only), or set `stategraph.orchestration.enabled=false` in the upgrade.
 
 ### From 0.2.x
 
