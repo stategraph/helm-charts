@@ -13,6 +13,14 @@ data:
   # Only "0" and "false" turn scanning off; any other value, including an
   # empty string, turns it on.
   STATEGRAPH_SECURITY: {{ ternary "1" "0" .Values.stategraph.security.enabled | quote }}
+  {{- if eq (include "stategraph.edition" .) "enterprise" }}
+  STATEGRAPH_MCP_ENABLED: {{ ternary "true" "false" .Values.stategraph.mcp.enabled | quote }}
+  {{- if not .Values.stategraph.mcp.docs.enabled }}
+  STATEGRAPH_MCP_DOCS_URL: ""
+  {{- else if .Values.stategraph.mcp.docs.url }}
+  STATEGRAPH_MCP_DOCS_URL: {{ .Values.stategraph.mcp.docs.url | quote }}
+  {{- end }}
+  {{- end }}
   DB_HOST: {{ include "stategraph.dbHost" . | quote }}
   DB_PORT: {{ .Values.postgresql.port | quote }}
   DB_USER: {{ .Values.postgresql.auth.username | quote }}

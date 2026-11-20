@@ -97,6 +97,9 @@ The following table lists the configurable parameters of the Stategraph chart an
 | `stategraph.cost.sslMode` | libpq `sslmode` for the price-book connection | `disable` |
 | `stategraph.cost.refreshHours` | Price-book refresh interval; empty means the image default (168), `0` turns it off | `""` |
 | `stategraph.security.enabled` | Enable security scanning of states with checkov | `false` |
+| `stategraph.mcp.enabled` | Serve the MCP server for AI agents at `/api/v1/mcp`. The enterprise edition serves it | `true` |
+| `stategraph.mcp.docs.enabled` | Turn on the docs tools of the MCP server | `true` |
+| `stategraph.mcp.docs.url` | `STATEGRAPH_MCP_DOCS_URL`; empty means the docs bundled in the image | `""` |
 | `stategraph.orchestration.enabled` | Stategraph Orchestration | `true` |
 | `stategraph.orchestration.apiBase` | `TERRAT_API_BASE`; empty means `stategraph.ui.base` plus `/api` | `""` |
 | `stategraph.orchestration.uiBase` | `TERRAT_UI_BASE`; empty means `stategraph.ui.base` | `""` |
