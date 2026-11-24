@@ -61,6 +61,17 @@ stategraph:
   security:
     enabled: false
 
+  # MCP server for AI agents at /api/v1/mcp (STATEGRAPH_MCP_ENABLED). The
+  # enterprise edition serves it; with edition oss these values have no effect.
+  mcp:
+    enabled: true
+    docs:
+      # The docs tools, which read the docs bundled in the image or docs.url.
+      enabled: true
+      # STATEGRAPH_MCP_DOCS_URL: a file, http or https URL of an llms-full.txt.
+      # Empty means the docs bundled in the image.
+      url: ""
+
   # Stategraph Orchestration: plans and applies from pull requests. Needs the
   # terrateam database and the two FDW roles on the PostgreSQL server; see
   # provisionDatabase below.
